@@ -61,6 +61,7 @@ import { MindARThree } from './node_modules/mind-ar/dist/mindar-image-three.prod
   var peachEls = [];
   var GAME_START = [0.15, 0.75, 1.35, 1.95, 2.55];
   var GAME_X = [24, 47, 69, 36, 58];
+  var SPIN_DUR = 0.85;   // 转一转：跳起来转一圈的时长（秒）
 
   function resetExtras(){
     S.spinAt = -99; S.infoAt = -99; S.petalsAt = -99; S.gameAt = -99; S.photoAt = -99;
@@ -698,6 +699,15 @@ import { MindARThree } from './node_modules/mind-ar/dist/mindar-image-three.prod
       var hopOn = !arMode || (now - arStart) > 2.4;
       var hopCycle = hopOn ? Math.max(0, Math.sin(now*1.15)) : 0;
       C.charGroup.position.y += Math.pow(hopCycle, 14) * 0.07;
+      // 转一转：跳起来转一整圈
+      var sp = now - S.spinAt;
+      if(S.spinAt > 0 && sp >= 0 && sp < SPIN_DUR){
+        var p = clamp(sp / SPIN_DUR, 0, 1);
+        C.charGroup.position.y += Math.sin(Math.PI * p) * 0.34;
+        C.charGroup.rotation.y += easeInOut(p) * Math.PI * 2;
+        var sq = Math.sin(Math.PI * Math.min(1, p * 3.2)) * 0.14;
+        C.charGroup.scale.set(1 + sq, 1 - sq, 1);
+      }
     }
     // 蒙顶徽章：左右摆动 + 上下浮动，像一枚会转的印章
     if(C.badge){
