@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>蜀韵茶居 · 明前绿茶 AR 互动包装</title>
+<script>
+/* 极早执行：内置浏览器识别 + import map 能力探测，即使 app.js 没加载成功也能给出提示 */
+(function(){
+  var ua = navigator.userAgent || '';
+  var inApp = /MicroMessenger|QQ\/|QQBrowser|Douyin|aweme|XiaoHongShu|XHS|Weibo|AlipayClient/i.test(ua);
+  window.__peachInApp = inApp;
+  if (inApp) document.documentElement.className += ' inapp';
+  try {
+    window.__peachImportMap = !!(window.HTMLScriptElement && HTMLScriptElement.supports && HTMLScriptElement.supports('importmap'));
+  } catch (e) { window.__peachImportMap = true; }
+})();
+</script>
+<link rel="preload" as="image" href="assets/ip-sheet-tea.webp" type="image/webp" fetchpriority="low">
+<style>
+  :root{
+    --rose:#22b83e; --rose-2:#49dc6e; --pink:#a3f9b8; --cream:#fff7f2;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{width:100%;height:100%;background:#def5e5;overflow:hidden}
+  body{font-family:"Microsoft YaHei","PingFang SC","Hiragino Sans GB",sans-serif;color:#2d5a39}
+  #stage{position:fixed;inset:0;overflow:hidden;background:#def5e5}
+  #c{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #ar-root{position:absolute;inset:0;display:none}
+  #ar-root video{object-fit:cover}
+  #ui{position:absolute;inset:0;pointer-events:none;z-index:5}
+
+  /* 状态栏 */
+  .statusbar{position:absolute;top:0;left:0;right:0;height:5.4%;display:flex;align-items:center;justify-content:space-between;padding:0 4.6%;font-size:2.05vh;font-weight:700;color:#22412a;letter-spacing:.02em}
+  .statusbar .right{display:flex;align-items:center;gap:1.6vh;font-size:1.75vh}
+  .sig{display:flex;align-items:flex-end;gap:.35vh;height:1.75vh}
+  .sig i{display:block;width:.42vh;background:#22412a;border-radius:.2vh}
+  .sig i:nth-child(1){height:35%}.sig i:nth-child(2){height:55%}.sig i:nth-child(3){height:76%}.sig i:nth-child(4){height:100%}
+  .bat{width:3.2vh;height:1.55vh;border:1.5px solid rgba(34,65,42,.7);border-radius:.35vh;position:relative;padding:1px}
+  .bat::after{content:"";position:absolute;right:-.35vh;top:50%;transform:translateY(-50%);width:.22vh;height:.55vh;background:rgba(34,65,42,.7);border-radius:0 .2vh .2vh 0}
+  .bat b{display:block;height:100%;width:86%;background:#22412a;border-radius:.15vh}
+
+  /* 顶部品牌条 */
+  .topbar{position:absolute;top:7.4%;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:0 4.6%}
+  .pill{display:flex;align-items:center;gap:.9vh;background:rgba(255,255,255,.78);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.9);box-shadow:0 .6vh 2vh rgba(77,173,103,.14);border-radius:999px;padding:1.05vh 1.8vh;font-size:1.65vh;font-weight:700;color:#20983a;letter-spacing:.04em}
+  .dot{width:.95vh;height:.95vh;border-radius:50%;background:#67f58a;box-shadow:0 0 .0 rgba(103,245,138,.6);animation:pulse 1.6s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(103,245,138,.55)}70%{box-shadow:0 0 0 1.2vh rgba(103,245,138,0)}100%{box-shadow:0 0 0 0 rgba(103,245,138,0)}}
+  .brand-mini{font-size:1.5vh;font-weight:700;color:rgba(47,115,66,.62);letter-spacing:.18em}
+
+  /* 扫描框 */
+  .scan{position:absolute;left:9%;width:82%;top:43%;height:42%;opacity:1}
+  .corner{position:absolute;width:4.4vh;height:4.4vh;border:0 solid rgba(38,205,72,.92);filter:drop-shadow(0 0 1.1vh rgba(255,255,255,.9))}
+  .tl{top:0;left:0;border-top-width:.42vh;border-left-width:.42vh;border-top-left-radius:1.4vh}
+  .tr{top:0;right:0;border-top-width:.42vh;border-right-width:.42vh;border-top-right-radius:1.4vh}
+  .bl{bottom:0;left:0;border-bottom-width:.42vh;border-left-width:.42vh;border-bottom-left-radius:1.4vh}
+  .br{bottom:0;right:0;border-bottom-width:.42vh;border-right-width:.42vh;border-bottom-right-radius:1.4vh}
+  .scanline{position:absolute;left:2.5%;right:2.5%;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.95),transparent);box-shadow:0 0 2.2vh rgba(255,255,255,.9),0 0 .8vh rgba(154,249,178,.8);will-change:transform}
+  .scantext{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(100% + 2.0vh);width:max-content;font-size:1.6vh;font-weight:700;color:#21a742;letter-spacing:.08em;background:rgba(255,255,255,.84);border:1px solid rgba(255,255,255,.9);box-shadow:0 .6vh 2vh rgba(48,162,76,.14);border-radius:999px;padding:1.0vh 2.0vh;backdrop-filter:blur(8px)}
+
+  /* 提示与 toast */
+  .hint{position:absolute;left:50%;bottom:9.2%;transform:translateX(-50%);display:flex;align-items:center;gap:1.1vh;background:rgba(23,75,36,.55);backdrop-filter:blur(12px);color:#fff;border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:1.35vh 2.4vh;font-size:1.75vh;font-weight:700;letter-spacing:.05em;white-space:nowrap;opacity:0;box-shadow:0 1.4vh 3vh rgba(24,76,36,.2)}
+  .hint svg{width:2.1vh;height:2.1vh;flex:none}
+  .toast{position:absolute;left:50%;top:26.5%;transform:translate(-50%,-1vh);display:flex;align-items:center;gap:1.1vh;background:rgba(255,255,255,.95);color:#209a39;border-radius:999px;padding:1.2vh 2.2vh;font-size:1.8vh;font-weight:700;letter-spacing:.05em;box-shadow:0 1.2vh 3.2vh rgba(57,163,81,.22);opacity:0}
+  .toast .ok{width:2.4vh;height:2.4vh;border-radius:50%;background:#76f694;color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.5vh}
+
+  /* 点击波纹 */
+  .tap{position:absolute;left:50%;top:39%;width:6.2vh;height:6.2vh;margin:-3.1vh 0 0 -3.1vh;border-radius:50%;border:2px solid rgba(255,255,255,.85);opacity:0;box-shadow:0 0 2.4vh rgba(128,247,159,.45),inset 0 0 1.2vh rgba(255,255,255,.4)}
+  .tap::after{content:"";position:absolute;inset:38%;border-radius:50%;background:rgba(255,255,255,.42);box-shadow:0 0 2vh rgba(128,247,159,.5)}
+
+  /* 结尾卡片 */
+  .endcard{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;opacity:0;background:linear-gradient(180deg,rgba(247,255,250,.975) 0%,rgba(235,254,239,.985) 42%,rgba(218,253,227,1) 100%);backdrop-filter:blur(10px)}
+  .endcard .brush{width:76%;max-width:820px;filter:drop-shadow(0 1.2vh 2.4vh rgba(37,133,63,.18));margin-bottom:1.6vh}
+  .endcard .sub{font-size:3.35vh;font-weight:800;color:#1f9f3d;letter-spacing:.16em;margin-bottom:1.4vh}
+  .endcard .line{width:16%;height:1px;background:linear-gradient(90deg,transparent,#90d4a1,transparent);margin:0 0 2.2vh}
+  .endcard .tag{font-size:1.95vh;font-weight:600;color:#478758;letter-spacing:.1em;line-height:1.9}
+  .endcard .foot{position:absolute;bottom:8.2%;font-size:1.55vh;color:#78a584;letter-spacing:.22em}
+  .endcard .mini{margin-top:3.2vh;display:flex;gap:1.2vh;align-items:center;font-size:1.6vh;color:#5bab70;letter-spacing:.08em}
+  .endcard .mini span{padding:.9vh 1.7vh;border:1px solid rgba(96,184,118,.35);border-radius:999px;background:rgba(255,255,255,.45)}
+
+  .qrintro{position:absolute;inset:0;z-index:6;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;pointer-events:none;background:radial-gradient(ellipse at 50% 28%,#fffaf6 0%,#eafef0 52%,#d6fce0 100%)}
+  .qr-kicker{font-size:1.55vh;font-weight:700;color:#7ebc8f;letter-spacing:.28em;margin-bottom:1.6vh}
+  .qr-title{font-size:4.1vh;font-weight:800;color:#1f9f3d;letter-spacing:.12em;margin-bottom:4.2vh;text-shadow:0 .6vh 2vh rgba(87,193,111,.12)}
+  .qr-holder{position:relative;width:54%;max-width:620px;filter:drop-shadow(0 3vh 6vh rgba(57,163,81,.18));border-radius:3vh;overflow:hidden;background:#fff}
+  .qr-holder img{display:block;width:100%;height:auto}
+  .qr-scanline{position:absolute;left:4%;right:4%;top:20%;height:2px;background:linear-gradient(90deg,transparent,#69f58a,#d3fcde,#69f58a,transparent);box-shadow:0 0 2vh rgba(105,245,138,.85),0 0 5vh rgba(147,248,172,.55)}
+  .qr-sub{margin-top:3.6vh;font-size:1.65vh;font-weight:600;color:#5e976d;letter-spacing:.14em}
+  .qr-ok{position:absolute;left:50%;bottom:13%;transform:translateX(-50%);display:flex;align-items:center;gap:1vh;background:rgba(255,255,255,.96);color:#209a39;border-radius:999px;padding:1.2vh 2.2vh;font-size:1.7vh;font-weight:700;letter-spacing:.05em;box-shadow:0 1.2vh 3.4vh rgba(57,163,81,.2);opacity:0}
+  .qr-ok span{width:2.4vh;height:2.4vh;border-radius:50%;background:#76f694;color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.4vh}
+  .endcard .qrrow{display:flex;align-items:center;gap:2.4vh;margin-top:4.2vh;padding:1.7vh 2.2vh;background:rgba(255,255,255,.62);border:1px solid rgba(96,184,118,.25);border-radius:2.2vh}
+  .endcard .qrrow img{width:15vh;height:15vh;display:block;background:#fff;padding:.45vh;border-radius:.8vh}
+  .endcard .qrtxt{text-align:left;line-height:1.9;color:#478758;font-size:1.7vh;letter-spacing:.04em}
+  .endcard .qrtxt b{display:block;font-size:2.15vh;color:#1f9f3d;letter-spacing:.1em;margin-bottom:.5vh}
+  .actions{position:absolute;left:50%;bottom:5.0%;transform:translate(-50%,2vh);display:flex;align-items:center;gap:.9vh;padding:1.0vh 1.2vh;background:rgba(25,75,37,.46);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.26);border-radius:999px;opacity:0;z-index:7;pointer-events:auto;box-shadow:0 2vh 5vh rgba(24,76,36,.22)}
+  .act{width:9.1vh;border:0;background:none;color:#fff;display:flex;flex-direction:column;align-items:center;gap:.45vh;font-family:inherit;cursor:pointer;padding:0}
+  .act .ico{width:4.4vh;height:4.4vh;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.15);font-size:2.1vh;line-height:1}
+  .act .peachico{background:rgba(255,255,255,.9) url(assets/leaf.png) center/78% no-repeat}
+  .act span:last-child{font-size:1.2vh;font-weight:700;letter-spacing:.03em;white-space:nowrap}
+  .act.hot .ico{background:#78f696;box-shadow:0 0 2.2vh rgba(105,245,142,.95);transform:scale(1.22)}
+  .infocard{position:absolute;right:3%;top:29%;width:39%;padding:2.0vh 2.1vh;background:rgba(255,252,250,.95);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.9);border-radius:2.2vh;box-shadow:0 2.4vh 6vh rgba(35,115,54,.22);opacity:0;transform:translateX(7vh);z-index:8;pointer-events:auto;color:#376a45}
+  .infocard .x{position:absolute;right:1.2vh;top:1.0vh;width:3vh;height:3vh;border:0;border-radius:50%;background:rgba(34,184,62,.08);color:#1f9f3d;font-size:2vh;line-height:1;cursor:pointer}
+  .ic-tag{display:inline-block;font-size:1.15vh;font-weight:700;color:#22b83e;background:#e5fdeb;border-radius:999px;padding:.5vh 1.1vh;letter-spacing:.08em}
+  .ic-title{font-size:2.5vh;font-weight:800;color:#1f9f3d;margin:1.3vh 0 .5vh;letter-spacing:.03em}
+  .ic-sub{font-size:1.5vh;color:#5bab70;margin-bottom:1.4vh}
+  .ic-row{display:flex;justify-content:space-between;font-size:1.42vh;padding:.75vh 0;border-top:1px solid rgba(34,184,62,.10)}
+  .ic-row span{color:#78a584}.ic-row b{color:#376a45;font-weight:700}
+  .ic-foot{margin-top:1.0vh;font-size:1.2vh;color:#6eac81;letter-spacing:.05em}
+  .bless{position:absolute;left:50%;top:21%;transform:translate(-50%,-1vh);background:rgba(255,255,255,.95);color:#21a742;font-size:1.85vh;font-weight:800;letter-spacing:.07em;border-radius:999px;padding:1.2vh 2.3vh;box-shadow:0 1.4vh 4vh rgba(57,163,81,.2);opacity:0;z-index:8}
+  .gamehud{position:absolute;left:50%;top:13.2%;transform:translateX(-50%);display:flex;align-items:center;gap:1.4vh;background:rgba(25,75,37,.55);backdrop-filter:blur(12px);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:1.1vh 2.2vh;font-size:1.6vh;font-weight:700;opacity:0;z-index:8}
+  .gamehud b{color:#ffd166;font-size:2.2vh}
+  .peach-layer{position:absolute;inset:0;z-index:8;pointer-events:none}
+  .peach{position:absolute;width:9vh;height:9vh;border:0;background:url(assets/leaf.png) center/contain no-repeat;pointer-events:auto;opacity:0;transform:translate(-50%,-50%);filter:drop-shadow(0 1vh 2vh rgba(47,143,73,.3));cursor:pointer}
+  .badge{position:absolute;left:50%;top:25%;transform:translate(-50%,-50%) scale(.9);background:linear-gradient(135deg,#ffd76e,#ff9d6e);color:#1d7433;font-size:1.95vh;font-weight:800;letter-spacing:.05em;border-radius:999px;padding:1.2vh 2.5vh;box-shadow:0 1.6vh 4vh rgba(200,120,20,.35);opacity:0;z-index:9}
+  .crown{position:absolute;left:50%;top:20%;transform:translate(-50%,-50%) rotate(-8deg);font-size:6vh;line-height:1;opacity:0;z-index:9;filter:drop-shadow(0 .8vh 1.2vh rgba(160,90,0,.35))}
+  .flash{position:absolute;inset:0;background:#fff;opacity:0;z-index:10;pointer-events:none}
+  .polaroid{position:absolute;left:50%;bottom:7%;width:54%;padding:1.5vh 1.5vh 2.0vh;background:#fff;border-radius:1.4vh;box-shadow:0 3vh 8vh rgba(24,86,37,.35);transform:translate(-50%,14vh) rotate(-3deg);opacity:0;z-index:9;pointer-events:none}
+  .polaroid img{display:block;width:100%;height:38vh;object-fit:cover;background:#e8feee;border-radius:.7vh}
+  .pola-cap{display:flex;justify-content:space-between;align-items:center;margin-top:1.4vh;font-size:1.5vh;font-weight:700;color:#1f9f3d;letter-spacing:.04em}
+  .pola-cap span{font-size:1.05vh;font-weight:500;color:#7dad8b}
+  .saved{position:absolute;left:50%;top:17%;transform:translateX(-50%);background:rgba(255,255,255,.95);color:#209a39;border-radius:999px;padding:1.0vh 2.1vh;font-size:1.55vh;font-weight:700;box-shadow:0 1.2vh 3vh rgba(57,163,81,.2);opacity:0;z-index:10}
+  .loading{position:absolute;inset:0;z-index:22;display:none;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 40%,#fffaf6 0%,#e7feed 60%,#d4fcdf 100%);color:#1f9f3d}
+  .spinner{width:5.2vh;height:5.2vh;border:4px solid rgba(34,184,62,.15);border-top-color:#22b83e;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:2.4vh}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading-title{font-size:2.1vh;font-weight:800;letter-spacing:.08em}
+  .loading-sub{margin-top:1.2vh;font-size:1.5vh;color:#7dad8b}
+  .start{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 7%;background:radial-gradient(ellipse at 50% 26%,#fffaf6 0%,#e9feee 52%,#d4fcdf 100%)}
+  .start-kicker{font-size:1.45vh;font-weight:700;color:#7ebc8f;letter-spacing:.28em;margin-bottom:1.6vh}
+  .start-brush{width:66%;max-width:760px;filter:drop-shadow(0 1.4vh 3vh rgba(37,133,63,.18));margin-bottom:1.0vh}
+  .start-sub{font-size:2.0vh;font-weight:800;color:#1f9f3d;letter-spacing:.16em;margin-bottom:3.2vh}
+  .start-ip{width:32%;max-width:360px;filter:drop-shadow(0 3vh 5vh rgba(47,143,73,.22));margin-bottom:2.6vh}
+  .start-ip img{display:block;width:100%;height:auto}
+  .start-copy{font-size:1.9vh;line-height:1.9;color:#447852;letter-spacing:.05em;margin-bottom:3.6vh}
+  .start-btn{pointer-events:auto;display:flex;align-items:center;justify-content:center;gap:1.1vh;border:0;background:linear-gradient(135deg,#49dc6e,#22b83e);color:#fff;font-family:inherit;font-size:2.0vh;font-weight:800;letter-spacing:.06em;padding:1.7vh 4.2vh;border-radius:999px;box-shadow:0 1.6vh 4vh rgba(40,190,79,.32);cursor:pointer}
+  .start-btn span{font-size:2.2vh}
+  .start-demo{pointer-events:auto;margin-top:2.0vh;border:0;background:none;color:#1f9f3d;font-family:inherit;font-size:1.65vh;font-weight:700;text-decoration:underline;text-underline-offset:.5vh;cursor:pointer}
+  .start-note{margin-top:3.0vh;font-size:1.35vh;line-height:1.8;color:#7dad8b;letter-spacing:.04em}
+  .start-warn{display:none;margin-top:2.0vh;background:#fff3d6;border:1px solid #f0d28a;color:#8a5a00;border-radius:1.4vh;padding:1.2vh 1.8vh;font-size:1.4vh;font-weight:700;line-height:1.7}
+  .inapp .start-warn{display:block}
+
+  /* 加载卡住时的兜底面板 */
+  .boothelp{position:absolute;inset:0;z-index:24;display:none;align-items:center;justify-content:center;padding:0 9%;background:rgba(29,86,43,.42);backdrop-filter:blur(6px)}
+  .boothelp.on{display:flex}
+  .bh-card{width:100%;max-width:620px;background:#fffaf7;border-radius:2.6vh;padding:3.6vh 3.2vh 2.8vh;text-align:center;box-shadow:0 4vh 10vh rgba(24,76,36,.35)}
+  .bh-icon{font-size:5vh;line-height:1;margin-bottom:1.6vh}
+  .bh-title{font-size:2.4vh;font-weight:800;color:#1f9f3d;letter-spacing:.06em}
+  .bh-msg{margin-top:1.6vh;font-size:1.65vh;line-height:1.9;color:#447852}
+  .bh-btns{display:flex;gap:1.4vh;justify-content:center;margin-top:2.8vh}
+  .bh-btns button{border:0;background:#26cd48;color:#fff;font-family:inherit;font-size:1.75vh;font-weight:700;padding:1.4vh 2.8vh;border-radius:999px;box-shadow:0 1vh 3vh rgba(40,190,79,.28)}
+  .bh-btns button.ghost{background:#fff;color:#1f9f3d;border:1px solid rgba(34,184,62,.3);box-shadow:none}
+  .bh-close{margin-top:2.0vh;border:0;background:none;color:#7dad8b;font-family:inherit;font-size:1.45vh;text-decoration:underline;text-underline-offset:.4vh}
+  .ce-icon{font-size:5vh;margin-bottom:1.4vh}
+  .ce-btns{display:flex;gap:1.4vh;justify-content:center;flex-wrap:wrap}
+  .fallback .ghost{background:#fff;color:#1f9f3d;border:1px solid rgba(34,184,62,.3);box-shadow:none}
+  .ce-tip{margin-top:3.0vh;font-size:1.45vh;line-height:1.9;color:#5e976d}
+  .ce-copy{display:none;margin-top:2.2vh;border:0;background:none;color:#1f9f3d;font-family:inherit;font-size:1.5vh;font-weight:700;text-decoration:underline;cursor:pointer}
+  .start, .fallback{z-index:20}
+  .homebar{position:absolute;left:50%;bottom:1.35%;transform:translateX(-50%);width:34%;height:.55%;border-radius:999px;background:rgba(27,58,35,.32);z-index:9}
+  .vignette{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 45%,transparent 50%,rgba(31,114,51,.16) 100%);pointer-events:none;z-index:4}
+  .grain{position:absolute;inset:0;opacity:.055;mix-blend-mode:overlay;pointer-events:none;z-index:4;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='160' height='160' filter='url(%23n)' opacity='.7'/></svg>")}
+
+  .fallback{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;padding:10%;text-align:center;background:linear-gradient(180deg,#fff7f2,#dbfde4);z-index:20}
+  .fallback h2{font-size:3vh;color:#1f9f3d;margin-bottom:2vh}
+  .fallback p{font-size:1.9vh;line-height:1.8;color:#447852;margin-bottom:4vh}
+  .fallback button{pointer-events:auto;border:0;background:#26cd48;color:#fff;font-size:2vh;font-weight:700;padding:1.6vh 4vh;border-radius:999px;box-shadow:0 1vh 3vh rgba(40,190,79,.3)}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="c"></canvas>
+  <div id="ar-root"></div>
+  <div class="vignette"></div>
+  <div class="grain"></div>
+
+  <div id="ui">
+    <div class="statusbar">
+      <div class="time">15:11</div>
+      <div class="right">
+        <div class="sig"><i></i><i></i><i></i><i></i></div>
+        <div>5G</div>
+        <div class="bat"><b></b></div>
+      </div>
+    </div>
+
+    <div class="topbar">
+      <div class="pill"><span class="dot"></span>AR 互动包装</div>
+      <div class="brand-mini">蜀韵茶居 · 蒙顶</div>
+    </div>
+
+    <div class="scan" id="scan">
+      <div class="corner tl"></div><div class="corner tr"></div>
+      <div class="corner bl"></div><div class="corner br"></div>
+      <div class="scanline" id="scanline"></div>
+      <div class="scantext">对准包装 · 茶灵即将出箱</div>
+    </div>
+
+    <div class="toast" id="toast"><span class="ok">✓</span>识别成功 · 茶灵小芽已就位</div>
+    <div class="hint" id="hint">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V11m0-2.5a1.5 1.5 0 0 1 3 0V11m0-1.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1.2a5 5 0 0 1-3.9-1.9L4.2 15a1.6 1.6 0 0 1 2.3-2.2L9 15" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span id="hintText">轻触屏幕 · 和茶灵互动</span>
+    </div>
+
+    <div class="tap" id="tap"></div>
+
+    <div class="qrintro" id="qrintro">
+      <div class="qr-kicker">蜀 韵 茶 居 · 明 前 绿 茶</div>
+      <div class="qr-title">扫一扫，茶灵出箱</div>
+      <div class="qr-holder">
+        <img src="assets/qr-card.png" alt="AR 互动二维码">
+        <div class="qr-scanline" id="qrScanline"></div>
+      </div>
+      <div class="qr-sub">微信 / 相机扫一扫 · 打开 AR 互动</div>
+      <div class="qr-ok" id="qrOk"><span>✓</span>识别成功，正在进入 AR</div>
+    </div>
+
+    <div class="actions" id="actions">
+      <button class="act" data-act="spin"><span class="ico">↻</span><span>转一转</span></button>
+      <button class="act" data-act="info"><span class="ico">❖</span><span>看详情</span></button>
+      <button class="act" data-act="petals"><span class="ico">✿</span><span>茶香雨</span></button>
+      <button class="act" data-act="game"><span class="ico peachico"></span><span>接茶芽</span></button>
+      <button class="act" data-act="photo"><span class="ico">◉</span><span>合影</span></button>
+    </div>
+
+    <div class="infocard" id="infocard">
+      <button class="x" id="icClose">×</button>
+      <div class="ic-tag">高山云雾茶园</div>
+      <div class="ic-title">蒙顶 · 明前绿茶</div>
+      <div class="ic-sub">高山云雾 · 明前头采</div>
+      <div class="ic-row"><span>产区</span><b>四川蒙顶山</b></div>
+      <div class="ic-row"><span>品种</span><b>蒙顶甘露 / 碧潭飘雪</b></div>
+      <div class="ic-row"><span>采摘</span><b>明前手采 · 当日杀青</b></div>
+      <div class="ic-foot">蜀韵茶居 · 每一叶都采得刚刚好</div>
+    </div>
+
+    <div class="bless" id="bless">✿ 茶香满满 · 好运 +1</div>
+
+    <div class="gamehud" id="gamehud"><span>接住小茶芽</span><b id="score">0</b><span>/ 5</span></div>
+    <div class="peach-layer" id="peachLayer"></div>
+    <div class="badge" id="badge">茶香满格 · 隐藏款解锁</div>
+    <div class="crown" id="crown">👑</div>
+
+    <div class="flash" id="flash"></div>
+    <div class="polaroid" id="polaroid">
+      <img id="polaroidImg" alt="">
+      <div class="pola-cap">蜀韵茶居 · 明前绿茶<span>2026.10.19</span></div>
+    </div>
+    <div class="saved" id="saved">✓ 已保存到相册</div>
+
+    <div class="endcard" id="endcard">
+      <img class="brush" src="assets/title-tea.png" alt="蜀韵茶居">
+      <div class="sub">明前绿茶 · AR 互动包装</div>
+      <div class="line"></div>
+      <div class="tag">对准包装，茶灵小芽即刻出箱<br>轻触屏幕，解锁属于你的茶香</div>
+      <div class="qrrow">
+        <img src="assets/qr-ar.png" alt="扫码看茶灵">
+        <div class="qrtxt"><b>扫码看茶灵</b><span>打开 AR 互动<br>和茶灵小芽玩一下</span></div>
+      </div>
+      <div class="foot">蜀 韵 茶 居 × 茶 灵 小 芽</div>
+    </div>
+  </div>
+
+  <div class="start" id="start">
+    <div class="start-kicker">蜀 韵 茶 居 · 明 前 绿 茶</div>
+    <img class="start-brush" src="assets/title-tea.png" alt="蜀韵茶居">
+    <div class="start-sub">AR 互动包装</div>
+    <picture class="start-ip">
+      <source srcset="assets/girl-sticker-480.webp" type="image/webp">
+      <img src="assets/girl-sticker-480.png" alt="茶灵小芽" width="480" height="761">
+    </picture>
+    <div class="start-copy">扫一扫包装上的二维码<br>把茶灵从盒子里叫出来</div>
+    <button class="start-btn" id="startBtn"><span>📷</span> 开启相机 · 开始 AR</button>
+    <button class="start-demo" id="startDemo">先看效果演示</button>
+    <div class="start-note">建议使用 Safari / Chrome 打开<br>需要允许相机权限</div>
+    <div class="start-warn" id="startWarn">当前在微信 / 小红书内，相机可能被限制<br>请点右上角 ··· → 在浏览器打开</div>
+  </div>
+
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div class="loading-title">正在打开相机…</div>
+    <div class="loading-sub">首次使用请允许相机权限</div>
+  </div>
+
+  <div class="boothelp" id="bootHelp">
+    <div class="bh-card">
+      <div class="bh-icon">📶</div>
+      <div class="bh-title" id="bhTitle">页面加载有点慢</div>
+      <div class="bh-msg" id="bhMsg">图片和 3D 引擎还没下载完。网络不稳时可以先重试，或点“看效果演示”。</div>
+      <div class="bh-btns">
+        <button id="bhReload">重新加载</button>
+        <button class="ghost" id="bhDemo">看效果演示</button>
+      </div>
+      <button class="bh-close" id="bhClose">继续等待</button>
+    </div>
+  </div>
+
+  <div class="homebar"></div>
+
+  <div class="fallback" id="fallback">
+    <div class="ce-icon">📷</div>
+    <h2 id="ceTitle">相机没有打开</h2>
+    <p id="ceMsg">请允许相机权限后重试。</p>
+    <div class="ce-btns">
+      <button id="retryBtn">重新授权</button>
+      <button class="ghost" id="demoBtn">看效果演示</button>
+    </div>
+    <div class="ce-tip" id="ceTip">iPhone：设置 → Safari → 相机 → 允许<br>Android：浏览器设置 → 网站权限 → 相机 → 允许</div>
+    <button class="ce-copy" id="copyBtn">复制当前链接</button>
+  </div>
+</div>
+
+<script>
+/* 兜底：14 秒还没准备好就给出可操作的出口，别让用户对着开始页干等 */
+(function(){
+  var help = document.getElementById('bootHelp');
+  var start = document.getElementById('start');
+  var recover = document.getElementById('bhReload');
+  var demo = document.getElementById('bhDemo');
+  var close = document.getElementById('bhClose');
+  if (recover) recover.onclick = function(){ location.reload(); };
+  if (demo) demo.onclick = function(){ location.href = '?mode=demo&play=1'; };
+  if (close) close.onclick = function(){ help.classList.remove('on'); };
+  setTimeout(function(){
+    if (window.__peachReady || !help) return;
+    if (start && getComputedStyle(start).display === 'none') return;
+    if (window.__peachImportMap === false) {
+      document.getElementById('bhTitle').textContent = '浏览器版本太旧';
+      document.getElementById('bhMsg').textContent = '当前浏览器不支持页面所需的模块加载（import maps）。请把 iPhone 升级到 iOS 16.4 以上，或改用最新版 Chrome / Safari 打开。';
+      if (demo) demo.style.display = 'none';
+    } else if (window.__peachInApp) {
+      document.getElementById('bhTitle').textContent = '微信里可能打不开相机';
+      document.getElementById('bhMsg').textContent = '请点右上角 ··· 选择“在浏览器打开”，再点“开启相机 · 开始 AR”。';
+    }
+    help.classList.add('on');
+  }, 14000);
+})();
+</script>
+<script type="importmap">
+{"imports":{"three":"./three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}
+</script>
+<script type="module" src="app.js?v=4"></script>
+</body>
+</html>
